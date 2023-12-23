@@ -1,0 +1,186 @@
+# These substitutions allow the end user to override certain values
+substitutions:
+  name: "esph-wyze-outdoor-plug"
+  friendly_name: "Wyze Outdoor Plug"
+  # Higher value gives lower watt readout
+  current_res: "0.001"
+  # Lower value gives lower voltage readout
+  voltage_div: "770"  
+  update_time: 10s  
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  # Automatically add the mac address to the name
+  # so you can use a single firmware for all devices
+  name_add_mac_suffix: true
+
+  # This will allow for (future) project identification,
+  # configuration and updates.
+  project:
+    name: esphome.esph-wyze-outdoor-plug
+    version: "1.0"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# To be able to get logs from the device via serial and api.
+logger:
+
+# API is a requirement of the dashboard import.
+api:
+
+# OTA is required for Over-the-Air updating
+ota:
+
+# This should point to the public location of this yaml file.
+dashboard_import:
+  package_import_url: github://brettebowman/ESPHome/esph-wyze-outdoor-plug/esph-wyze-outdoor-plug-esp32.yaml
+  import_full_config: true # or false
+
+captive_portal:
+mdns:
+#web_server:
+# disabled to due potential memory issues
+
+wifi:
+  # Leave blank to get wifi credentials via improv or captive portal
+  
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${name} AP"
+    password: "Wyze1234"
+
+esp32_improv:
+  authorizer: none
+  status_indicator: relay1_led_gpio
+
+# Sets up the improv via serial client for Wi-Fi provisioning
+#improv_serial:
+#  next_url: https://example.com/project-template/manual?ip={{ip_address}}&name={{device_name}}&version={{esphome_version}}
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+bluetooth_proxy:
+  active: true    
+
+switch:
+  - platform: gpio
+    name: Left Plug
+    pin:
+      number: GPIO15
+      inverted: false
+    restore_mode: ALWAYS_ON
+    id: relay1
+    on_turn_on:
+      - light.turn_on: relay1_led
+    on_turn_off:
+      - light.turn_off: relay1_led
+  - platform: gpio
+    name: Right Plug
+    pin:
+      number: GPIO32
+      inverted: false
+    restore_mode: ALWAYS_ON       
+    id: relay2
+    on_turn_on:
+      - light.turn_on: relay2_led
+    on_turn_off:
+      - light.turn_off: relay2_led
+  - platform: restart
+    name: Restart
+
+output:
+  - platform: gpio
+    pin: GPIO19
+    inverted: True
+    id: relay1_led_gpio
+  - platform: gpio
+    pin: GPIO16
+    inverted: True
+    id: relay2_led_gpio
+
+light:
+  - platform: binary
+    name: Relay1 LED
+    id: relay1_led
+    restore_mode: RESTORE_DEFAULT_ON     
+    internal: true    
+    output: relay1_led_gpio
+  - platform: binary
+    name: Relay2 LED
+    id: relay2_led
+    internal: true
+    output: relay2_led_gpio
+    restore_mode: RESTORE_DEFAULT_ON         
+
+sensor:
+  - platform: adc
+    pin: GPIO34
+    name: "Ambient Light"
+    update_interval: 10s
+    attenuation: 11db
+    device_class: illuminance
+    state_class: measurement
+    unit_of_measurement: lx
+    filters:
+      - lambda: |-
+          auto r = x;
+          if (r > 0) return r;
+          return 0;
+#          auto r = map((x * 3.3 / 10000.0) * 2000000.0, 0, 1023, 255, 0);
+  - platform: hlw8012
+    sel_pin:
+      number: GPIO25
+      inverted: true
+    cf_pin: GPIO27
+    cf1_pin: GPIO26
+    current_resistor: ${current_res}
+    voltage_divider: ${voltage_div}
+    change_mode_every: 3
+    update_interval: 3s    
+    current:
+      name: Amps
+      unit_of_measurement: A
+      accuracy_decimals: 2
+    voltage:
+      name: Volts
+      unit_of_measurement: V
+      accuracy_decimals: 1
+    power:
+      name: Watts
+      unit_of_measurement: W
+      accuracy_decimals: 0    
+      filters:
+        - calibrate_linear:
+            - 0.0 -> 0.0
+            - 134 -> 58 
+
+binary_sensor:
+  - platform: gpio
+    internal: true
+    pin:
+      number: GPIO18
+      mode: INPUT_PULLDOWN
+      inverted: True
+    name: Button1
+    on_press:
+      - switch.toggle: relay1
+  - platform: gpio
+    internal: true
+    pin:
+      number: GPIO17
+      mode: INPUT_PULLDOWN
+      inverted: True
+    name: Button2
+    on_press:
+      - switch.toggle: relay2
+
+status_led:
+  pin:
+    number: GPIO5
+    inverted: true
