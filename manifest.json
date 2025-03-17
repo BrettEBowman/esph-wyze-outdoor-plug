@@ -1,0 +1,13 @@
+{
+    "name": "esph-wyze-outdoor-plug",
+    "version": "1.3",
+    "builds": [
+        {
+            "chipFamily": "ESP32",
+            "ota": {
+                "md5": "2dc435c34223169888eb9d0301bb389d",
+                "path": "https://github.com/brettebowman/ESPHome/esph-wyze-outdoor-plug/firmware.ota.bin"
+            }
+        }
+    ]
+}
